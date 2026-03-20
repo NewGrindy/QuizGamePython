@@ -1,0 +1,101 @@
+from tkinter import *
+import openai
+from tkinter import ttk
+from ttkthemes import ThemedTk
+
+client = openai.OpenAI(api_key = "your api key")
+
+window = ThemedTk(theme="yaru")
+window.configure(themebg="yaru")
+window.geometry("500x800")
+window.title("Quiz")
+window.resizable(False, False)
+
+lbl = ttk.Label(window, text="", font=("Helvetica", 16), wraplength=400, justify="center")
+lbl.pack(pady=50)
+style = ttk.Style()
+style.configure("Big.TButton", font=("Helvetica", 12, "bold"))
+
+frameButtons = ttk.Frame()
+frameButtons.pack()
+lbl_score = ttk.Label(window, text="")
+lbl_score.pack(pady=20)
+
+question_count = 0
+
+MAX_QUESTIONS = 5
+
+score = 0
+
+progress = ttk.Progressbar(window,length=300, mode='determinate')
+progress.pack(pady=30)
+progress["maximum"] = MAX_QUESTIONS
+
+
+def check(uanswer):
+    global score, question_count
+    if answer == uanswer:
+        score += 1
+        lbl_score.configure(text=f"Correct! Score: {score}", foreground="green")
+    else:
+        lbl_score.configure(text=f"Wrong! Score: {score}", foreground="red")
+
+    question_count += 1
+    progress["value"] = question_count
+
+    if question_count < MAX_QUESTIONS:
+        generate_question()
+    else:
+        end_quiz()
+def end_quiz():
+    frameButtons.pack_forget()
+    lbl.configure(text="Quiz Complete!")
+
+    restart_btn = ttk.Button(window, text="Restart Quiz", command=restart_quiz)
+    restart_btn.pack(pady=20)
+
+
+def restart_quiz():
+    global score, question_count
+    score = 0
+    question_count = 0
+    progress["value"] = 0
+    lbl_score.configure(text="Score: 0", foreground="black")
+    for widget in window.pack_slaves():
+        if isinstance(widget, ttk.Button) and widget.cget("text") == "Restart Quiz":
+            widget.destroy()
+    frameButtons.pack(pady=20)
+    generate_question()
+
+
+yesbtn = ttk.Button(frameButtons, text="YES", style="Big.TButton", command=lambda: check("yes"), width=10)
+yesbtn.pack(side=LEFT, padx=20, ipady=10)
+
+nobtn = ttk.Button(frameButtons, text="NO", style="Big.TButton", command=lambda: check("no"), width=10)
+nobtn.pack(side=RIGHT, padx=20, ipady=10)
+
+def generate_question():
+    global answer
+    response = client.chat.completions.create(
+        model="gpt-3.5-turbo",
+        messages=[
+            {"role": "system", "content": "Generate a simple yes/no question in English about general knowledge (history, geography, everyday things), with a clear correct answer and also do not repeat questions. ""Return the format: 'Question : <question> | Answer: yes/no' "},
+            {"role": "user", "content": "Generate a simple yes/no question."}
+        ]
+    )
+    #print(response)
+    result = response.choices[0].message.content.strip()
+    #print(result)
+    question_part, answer_part = result.split(" | ")
+    #print(question_part)
+    #print(answer_part)
+    question = question_part.replace("Question: ","").strip()
+    answer = answer_part.replace("Answer: ","").strip().lower()
+    print(question)
+    print(answer)
+
+    lbl.configure(text=question)
+
+
+generate_question()
+window.mainloop()
